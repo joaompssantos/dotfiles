@@ -1,0 +1,87 @@
+= dotfiles: Personal Configuration Files
+:toc:
+:icons: font
+:github-url: https://github.com/joaompssantos/dotfiles
+
+[WARNING]
+====
+⚠️ This repository is a work in progress! Expect frequent changes and improvements.
+====
+
+== Overview
+
+This repository contains my personal dotfiles for Linux and Unix-like systems. These files configure my shell, editor, terminal, and other tools to create a consistent and productive environment across machines.
+
+== Features
+
+* Shell configuration (`.bashrc`, `.zshrc`, etc.)
+* Editor settings (e.g., `.vimrc`, `.config/nvim/init.vim`)
+* Git configuration (`.gitconfig`, `.gitignore_global`)
+* Tmux and screen settings
+* Custom scripts (in `bin/` or `scripts/`)
+* Application configs (e.g., `.config/` for various apps)
+
+== Installation
+
+Clone the repository:
+
+[source,bash]
+----
+git clone https://github.com/<your-username>/dotfiles.git ~/.dotfiles
+----
+
+Symlink the files to your home directory (example):
+
+[source,bash]
+----
+cd ~/.dotfiles
+stow bash vim git tmux
+----
+
+Or use your preferred symlink method or install script.
+
+== Bootstrap Script
+
+A `bootstrap.sh` script is provided to check for required dependencies and set up your environment. It detects your Linux distribution (Gentoo, Debian/Ubuntu, Arch, etc.) and installs missing packages using the appropriate package manager.
+
+== Structure
+
+[source]
+----
+dotfiles/
+├── .bashrc
+├── .zshrc
+├── .vimrc
+├── .gitconfig
+├── .gitignore_global
+├── .tmux.conf
+├── bin/
+│   └── <your-scripts>
+├── .config/
+│   └── <app-configs>
+└── ...
+----
+
+== Usage
+
+- Edit files as needed and commit changes.
+- Use `stow` or a similar tool to manage symlinks.
+- Keep your dotfiles under version control for easy backup and portability.
+
+== Customization
+
+Feel free to fork or adapt these dotfiles for your own use. Review each file before applying to your system.
+
+== License
+
+MIT License (see `LICENSE` file).
+
+== Credits
+
+Inspired by many open source dotfiles repos. See the GitHub community for more examples.
+
+== Links
+
+* link:{github-url}[GitHub Repository]
+* https://dotfiles.github.io/[dotfiles.github.io]
+* https://www.gnu.org/software/stow/[GNU Stow]
