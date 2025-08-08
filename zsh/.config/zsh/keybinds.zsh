@@ -2,7 +2,7 @@
 # to add other keys to this hash, see: man 5 terminfo
 typeset -g -A key
 
-# bindkey -e
+bindkey -e
 
 key[Home]="${terminfo[khome]}"
 key[End]="${terminfo[kend]}"
@@ -34,4 +34,4 @@ bindkey '^[[1;5D' backward-word
 bindkey '^[[1;5C' forward-word
 
 # Ctrl r
-bindkey '^R' history-incremental-search-backward
+#bindkey '^R' history-incremental-search-backward

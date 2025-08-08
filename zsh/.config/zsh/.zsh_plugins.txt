@@ -1,0 +1,8 @@
+# .zsh_plugins.txt - comments begin with "#"
+
+
+zsh-users/zsh-syntax-highlighting
+
+zsh-users/zsh-autosuggestions
+
+# junegunn/fzf

@@ -1,7 +1,5 @@
 ##### zsh configuration file #####
 
-export GPG_TTY=$(tty)
-
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.config/zsh/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]
 # confirmations, etc.) must go above this block; everything else may go below.
@@ -9,12 +7,33 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
+export GPG_TTY=$(tty)
+
 ## Inspired by: https://thevaluable.dev/zsh-install-configure-mouseless/
+
+### Antidote plugin manager ###
+# source antidote
+source ${ZDOTDIR}/antidote/antidote.zsh
+
+# initialize plugins statically with ${ZDOTDIR:-~}/.zsh_plugins.txt
+antidote load
 
 ### Aliases ###
 source ~/.config/aliases
 
 ### Key binds ###
+case "$TERM" in
+  xterm-256color)
+    source "${ZDOTDIR}/.zkbd/xterm-256color-:1"
+    ;;
+  xterm-ghostty)
+    source "${ZDOTDIR}/.zkbd/xterm-ghostty-:1"
+    ;;
+  *)
+    echo "No .zkbd file for TERM=$TERM"
+    ;;
+esac
+
 source ${ZDOTDIR}/keybinds.zsh
 
 ### History options ###
@@ -22,6 +41,7 @@ setopt hist_ignore_all_dups    # Keep only the most recent occurrence of a comma
 setopt hist_ignore_space       # Commands starting with space are not saved
 setopt inc_append_history      # Write to history file immediately, not just on shell exit
 setopt share_history           # Share history between all running Zsh sessions
+setopt hist_verify
 
 ### zsh completion ###
 autoload -U compinit
