@@ -21,4 +21,7 @@ alias utop='htop -u $USER'
 ### sudoedit ###
 alias sudoedit='SUDO_EDITOR=kate sudoedit'
 
+### nvim ###
+alias vim='nvim'
+
 ### Inspiration: https://github.com/Phantas0s/.dotfiles/blob/master/aliases/aliases
