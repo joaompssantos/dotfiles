@@ -1,20 +1,5 @@
-# create a zkbd compatible hash;
-# to add other keys to this hash, see: man 5 terminfo
-typeset -g -A key
-
+# Use emacs style keybindings
 bindkey -e
-
-key[Home]="${terminfo[khome]}"
-key[End]="${terminfo[kend]}"
-key[Insert]="${terminfo[kich1]}"
-key[Backspace]="${terminfo[kbs]}"
-key[Delete]="${terminfo[kdch1]}"
-key[Up]="${terminfo[kcuu1]}"
-key[Down]="${terminfo[kcud1]}"
-key[Left]="${terminfo[kcub1]}"
-key[Right]="${terminfo[kcuf1]}"
-key[PageUp]="${terminfo[kpp]}"
-key[PageDown]="${terminfo[knp]}"
 
 # setup key accordingly
 [[ -n "${key[Home]}"      ]] && bindkey -- "${key[Home]}"       beginning-of-line
@@ -32,6 +17,3 @@ key[PageDown]="${terminfo[knp]}"
 # Ctrl Arrows
 bindkey '^[[1;5D' backward-word
 bindkey '^[[1;5C' forward-word
-
-# Ctrl r
-#bindkey '^R' history-incremental-search-backward
