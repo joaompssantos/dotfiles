@@ -7,7 +7,8 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
-export GPG_TTY=$(tty)
+### gpg terminal device ###
+export GPG_TTY=$TTY
 
 ## Inspired by: https://thevaluable.dev/zsh-install-configure-mouseless/
 

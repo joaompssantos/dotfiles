@@ -3,7 +3,7 @@
 ### XDG directories ###
 export XDG_CONFIG_HOME="$HOME/.config"
 
-### Location of zsh config files
+### Location of zsh config files ###
 export ZDOTDIR="$XDG_CONFIG_HOME/zsh"
 
 ### zsh history variables ###
