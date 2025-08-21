@@ -1,0 +1,4 @@
+# List of zsh related files to ignore
+.zcompdump
+.zhistory
+.zsh_history
