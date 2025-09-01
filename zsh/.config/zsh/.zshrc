@@ -10,6 +10,9 @@ fi
 ### gpg terminal device ###
 export GPG_TTY=$TTY
 
+### Add to path ###
+PATH="${PATH:+${PATH}:}~/.local/bin"
+
 ## Inspired by: https://thevaluable.dev/zsh-install-configure-mouseless/
 
 ### Antidote plugin manager ###

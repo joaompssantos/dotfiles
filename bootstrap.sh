@@ -52,6 +52,77 @@ detect_os() {
     printf "\nDetected distribution: %s\n" "$DISTRO"
 }
 
+manually_install_packages() {
+    printf "Manually installing packages...\n"
+    mkdir -p "$HOME/.local/bin"
+
+    for pkg in $@; do
+        case "$pkg" in
+            nvim)
+                printf "Downloading Neovim AppImage...\n"
+                curl -fLo "$HOME/.local/bin/nvim" https://github.com/neovim/neovim/releases/latest/download/nvim.appimage
+                chmod +x "$HOME/.local/bin/nvim"
+                ;;
+            zellij)
+                printf "Downloading Zellij binary...\n"
+                curl -fLo "$HOME/.local/bin/zellij" https://github.com/zellij-org/zellij/releases/latest/download/zellij-x86_64-unknown-linux-musl
+                chmod +x "$HOME/.local/bin/zellij"
+                ;;
+            stow)
+                printf "Installing GNU Stow locally...\n"
+                git clone https://git.savannah.gnu.org/git/stow.git /tmp/stow-src
+                cd /tmp/stow-src
+                perl Makefile.PL PREFIX="$HOME/.local"
+                make install
+                cd -
+                rm -rf /tmp/stow-src
+                ;;
+            zsh)
+                printf "Installing Zsh locally...\n"
+
+                # Download and build latest ncurses in /tmp if not present
+                if ! (find "$HOME/.local/lib" "$HOME/.local/include" -name '*ncurses*' | grep -q ncurses); then
+                    printf "ncurses not found locally, compiling latest ncurses in /tmp...\n"
+                    wget -q https://ftp.gnu.org/pub/gnu/ncurses/ncurses-latest.tar.gz -O /tmp/ncurses-latest.tar.gz
+                    tar -xzf /tmp/ncurses-latest.tar.gz -C /tmp
+                    NCURSES_DIR=$(tar -tzf /tmp/ncurses-latest.tar.gz | head -1 | cut -f1 -d"/")
+                    cd "/tmp/$NCURSES_DIR"
+                    ./configure --prefix="$HOME/.local" --enable-shared --with-termlib --with-ticlib --with-install-prefix="$HOME/.local"
+                    make -j"$(nproc)"
+                    make install
+                    cd -
+                    rm -rf "/tmp/$NCURSES_DIR" /tmp/ncurses-latest.tar.gz
+                fi
+
+                # Download and build latest Zsh in /tmp
+                wget -qO /tmp/zsh.tar.xz https://sourceforge.net/projects/zsh/files/latest/download
+                mkdir -p /tmp/zsh-src
+                unxz /tmp/zsh.tar.xz
+                tar -xf /tmp/zsh.tar -C /tmp/zsh-src --strip-components 1
+                cd /tmp/zsh-src
+
+                export CPPFLAGS="-I$HOME/.local/include"
+                export LDFLAGS="-L$HOME/.local/lib"
+                ./configure --prefix="$HOME/.local"
+                make -j"$(nproc)"
+                make install
+                cd -
+                rm -rf /tmp/zsh-src /tmp/zsh.tar
+
+                printf "Official Zsh installed to \$HOME/.local/bin/zsh\n"
+                ;;
+            curl|git)
+                printf "Please install %s manually or via your package manager (no user-level installer available).\n" "$pkg"
+                ;;
+            *)
+                printf "No manual install instructions for %s. Please install it manually.\n" "$pkg"
+                ;;
+        esac
+    done
+
+    printf "Manual installation complete. Ensure \$HOME/.local/bin is in your PATH.\n\n"
+}
+
 install_packages() {
     local MISSING=""
     local pkg
@@ -63,8 +134,13 @@ install_packages() {
     done
 
     if [ -n "$MISSING" ]; then
-        printf "Installing missing packages: %s\n\n" "$MISSING"
-        eval "$INSTALL $MISSING"
+        if sudo -v &> /dev/null; then
+            printf "Installing missing packages: %s\n\n" "$MISSING"
+            eval "$INSTALL $MISSING"
+        else
+            printf "Missing packages but no sudo access available.\n"
+            manually_install_packages $MISSING
+        fi
     else
         printf "All required packages are installed.\n\n"
     fi
@@ -128,10 +204,18 @@ refresh_font_cache() {
 }
 
 set_default_shell() {
+    local zsh_path="$HOME/.local/bin/zsh"
     if ! echo "$SHELL" | grep -q "zsh$"; then
         printf "Changing default shell to zsh...\n"
-        chsh -s "$(command -v zsh)"
-        printf "\n"
+        if chsh -s "$zsh_path"; then
+            printf "Default shell changed to %s.\n\n" "$zsh_path"
+        else
+            printf "Failed to change shell. You may need to add\n"
+            printf "  %s\n" "$zsh_path"
+            printf "to /etc/shells (requires root), then run:\n"
+            printf "  chsh -s %s\n" "$zsh_path"
+            printf "Or, add 'exec %s -l' to your ~/.bash_profile or ~/.profile.\n\n" "$zsh_path"
+        fi
     fi
 }
 
