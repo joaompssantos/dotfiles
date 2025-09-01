@@ -269,7 +269,7 @@ refresh_font_cache() {
 }
 
 set_default_shell() {
-    local zsh_path="$HOME/.local/bin/zsh"
+    local zsh_path=$(which zsh)
     if ! echo "$SHELL" | grep -q "zsh$"; then
         printf "Changing default shell to zsh...\n"
         if chsh -s "$zsh_path"; then
