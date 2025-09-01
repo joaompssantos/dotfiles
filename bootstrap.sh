@@ -37,6 +37,17 @@ print_header() {
     printf "Log: %s\n" "$LOGFILE"
 }
 
+find_missing_packages() {
+    MISSING=""
+    local pkg
+    for pkg in $REQUIRED_PACKAGES; do
+        if ! command -v "$pkg" >/dev/null 2>&1; then
+            printf "Missing: %s\n" "$pkg"
+            MISSING="$MISSING $pkg"
+        fi
+    done
+}
+
 detect_os() {
     if [ -f /etc/arch-release ]; then
         DISTRO="arch"
@@ -49,7 +60,10 @@ detect_os() {
         INSTALL="sudo emerge --ask --noreplace --oneshot"
     else
         printf "Unsupported or unknown distribution.\n"
-        exit 1
+        printf "Proceeding with manual installation...\n"
+
+        find_missing_packages
+        manually_install_packages $MISSING
     fi
     printf "\nDetected distribution: %s\n" "$DISTRO"
 }
@@ -186,15 +200,6 @@ manually_install_packages() {
 }
 
 install_packages() {
-    local MISSING=""
-    local pkg
-    for pkg in $REQUIRED_PACKAGES; do
-        if ! command -v "$pkg" >/dev/null 2>&1; then
-            printf "Missing: %s\n" "$pkg"
-            MISSING="$MISSING $pkg"
-        fi
-    done
-
     if [ -n "$MISSING" ]; then
         if sudo -v &> /dev/null; then
             printf "Installing missing packages: %s\n\n" "$MISSING"
