@@ -59,11 +59,9 @@ detect_os() {
         DISTRO="gentoo"
         INSTALL="sudo emerge --ask --noreplace --oneshot"
     else
+        DISTRO="unknown"
         printf "Unsupported or unknown distribution.\n"
         printf "Proceeding with manual installation...\n"
-
-        find_missing_packages
-        manually_install_packages $MISSING
     fi
     printf "\nDetected distribution: %s\n" "$DISTRO"
 }
@@ -131,7 +129,7 @@ install_stow() {
     make
     make install
     cd -
-    rm -rf ${HOME}/bootstrap/$STOW_DIR ${HOME}/bootstrap/stow.tar.gz
+    rm -rf $STOW_DIR ${HOME}/bootstrap/stow.tar.gz
 }
 
 install_zsh() {
@@ -303,7 +301,13 @@ main() {
 
     print_header
     detect_os
-    install_packages
+    find_missing_packages
+
+    if [ "$DISTRO" != "unknown" ]; then
+        install_packages
+    else
+        manually_install_packages $MISSING
+    fi
 
     if [ "$DO_FONTS" -eq 1 ]; then
         install_nerd_fonts
