@@ -28,7 +28,9 @@ EOF
 }
 
 print_header() {
-    LOGFILE="/tmp/bootstrap.log"
+    rm -rf ${HOME}/bootstrap
+    mkdir -p ${HOME}/bootstrap
+    LOGFILE="${HOME}/bootstrap/script.log"
     exec > >(tee -a "$LOGFILE") 2>&1
     printf "==== Dotfiles Bootstrap Script ====\n"
     printf "Started at: %s\n" "$(date)"
@@ -52,6 +54,107 @@ detect_os() {
     printf "\nDetected distribution: %s\n" "$DISTRO"
 }
 
+get_glibc_version() {
+    ldd --version | head -1 | awk '{print $NF}'
+}
+
+install_neovim() {
+    local glibc_ver
+    glibc_ver=$(get_glibc_version)
+    echo "Your glibc version: $glibc_ver"
+
+    local found=0
+    while read -r tag; do
+        echo "Checking tag: $tag"
+        notes=$(curl -s "https://api.github.com/repos/neovim/neovim/releases/tags/$tag" | grep -i glibc)
+        if [ -z "$notes" ] || echo "$notes" | grep -q "$glibc_ver"; then
+            url="https://github.com/neovim/neovim/releases/download/$tag/nvim-linux-x86_64.appimage"
+            echo "Trying Neovim $tag AppImage..."
+            if curl -fLo "$HOME/.local/bin/nvim" "$url"; then
+                chmod +x "$HOME/.local/bin/nvim"
+                echo "Compatible Neovim AppImage installed: $tag"
+                found=1
+                break
+            else
+                echo "Download failed for $tag, skipping."
+            fi
+        fi
+    done < <(curl -s "https://api.github.com/repos/neovim/neovim/releases" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+
+    if [ "$found" -eq 0 ]; then
+        echo "No compatible Neovim AppImage found for glibc $glibc_ver."
+        return 1
+    fi
+    return 0
+}
+
+install_zellij() {
+    printf "Downloading Zellij binary...\n"
+    curl -sSfL https://github.com/zellij-org/zellij/releases/latest/download/zellij-x86_64-unknown-linux-musl.tar.gz -o ${HOME}/bootstrap/zellij.tar.gz
+    tar -xzf ${HOME}/bootstrap/zellij.tar.gz -C ${HOME}/bootstrap
+    mv ${HOME}/bootstrap/zellij "$HOME/.local/bin/zellij"
+    chmod +x "$HOME/.local/bin/zellij"
+    rm -f ${HOME}/bootstrap/zellij.tar.gz
+}
+
+install_stow() {
+    printf "Installing GNU Stow locally...\n"
+    wget -q https://ftp.gnu.org/gnu/stow/stow-latest.tar.gz -O ${HOME}/bootstrap/stow.tar.gz
+    if [ ! -f "${HOME}/bootstrap/stow.tar.gz" ]; then
+        echo "Failed to download stow-latest.tar.gz. Please check your network or the URL."
+        return 1
+    fi
+
+    tar -xzf ${HOME}/bootstrap/stow.tar.gz -C ${HOME}/bootstrap
+    STOW_DIR=$(find "${HOME}/bootstrap" -maxdepth 1 -type d -name "stow-*.*.*" | head -1)
+    if [ -z "$STOW_DIR" ]; then
+        echo "Could not find extracted Stow directory."
+        return 1
+    fi
+
+    cd $STOW_DIR
+    ./configure --prefix="$HOME/.local"
+    make
+    make install
+    cd -
+    rm -rf ${HOME}/bootstrap/$STOW_DIR ${HOME}/bootstrap/stow.tar.gz
+}
+
+install_zsh() {
+    printf "Installing Zsh locally...\n"
+
+    # Download and build latest ncurses in ${HOME}/bootstrap if not present
+    # if ! (find "$HOME/.local/lib" "$HOME/.local/include" -name '*ncurses*' | grep -q ncurses); then
+    #     printf "ncurses not found locally, compiling latest ncurses in ${HOME}/bootstrap...\n"
+    #     wget -q https://ftp.gnu.org/pub/gnu/ncurses/ncurses-latest.tar.gz -O ${HOME}/bootstrap/ncurses-latest.tar.gz
+    #     tar -xzf ${HOME}/bootstrap/ncurses-latest.tar.gz -C ${HOME}/bootstrap
+    #     NCURSES_DIR=$(tar -tzf ${HOME}/bootstrap/ncurses-latest.tar.gz | head -1 | cut -f1 -d"/")
+    #     cd "${HOME}/bootstrap/$NCURSES_DIR"
+    #     ./configure --prefix="$HOME/.local" --enable-shared --with-termlib --with-ticlib --with-install-prefix="$HOME/.local"
+    #     make -j"$(nproc)"
+    #     make install
+    #     cd -
+    #     rm -rf "${HOME}/bootstrap/$NCURSES_DIR" ${HOME}/bootstrap/ncurses-latest.tar.gz
+    # fi
+
+    # Download and build latest Zsh in ${HOME}/bootstrap
+    wget -qO ${HOME}/bootstrap/zsh.tar.xz https://sourceforge.net/projects/zsh/files/latest/download
+    mkdir -p ${HOME}/bootstrap/zsh-src
+    unxz ${HOME}/bootstrap/zsh.tar.xz
+    tar -xf ${HOME}/bootstrap/zsh.tar -C ${HOME}/bootstrap/zsh-src --strip-components 1
+    cd ${HOME}/bootstrap/zsh-src
+
+    export CPPFLAGS="-I$HOME/.local/include"
+    export LDFLAGS="-L$HOME/.local/lib"
+    ./configure --prefix="$HOME/.local"
+    make -j"$(nproc)"
+    make install
+    cd -
+    rm -rf ${HOME}/bootstrap/zsh-src ${HOME}/bootstrap/zsh.tar
+
+    printf "Official Zsh installed to \$HOME/.local/bin/zsh\n"
+}
+
 manually_install_packages() {
     printf "Manually installing packages...\n"
     mkdir -p "$HOME/.local/bin"
@@ -59,57 +162,16 @@ manually_install_packages() {
     for pkg in $@; do
         case "$pkg" in
             nvim)
-                printf "Downloading Neovim AppImage...\n"
-                curl -fLo "$HOME/.local/bin/nvim" https://github.com/neovim/neovim/releases/latest/download/nvim.appimage
-                chmod +x "$HOME/.local/bin/nvim"
+                install_neovim
                 ;;
             zellij)
-                printf "Downloading Zellij binary...\n"
-                curl -fLo "$HOME/.local/bin/zellij" https://github.com/zellij-org/zellij/releases/latest/download/zellij-x86_64-unknown-linux-musl
-                chmod +x "$HOME/.local/bin/zellij"
+                install_zellij
                 ;;
             stow)
-                printf "Installing GNU Stow locally...\n"
-                git clone https://git.savannah.gnu.org/git/stow.git /tmp/stow-src
-                cd /tmp/stow-src
-                perl Makefile.PL PREFIX="$HOME/.local"
-                make install
-                cd -
-                rm -rf /tmp/stow-src
+                install_stow
                 ;;
             zsh)
-                printf "Installing Zsh locally...\n"
-
-                # Download and build latest ncurses in /tmp if not present
-                if ! (find "$HOME/.local/lib" "$HOME/.local/include" -name '*ncurses*' | grep -q ncurses); then
-                    printf "ncurses not found locally, compiling latest ncurses in /tmp...\n"
-                    wget -q https://ftp.gnu.org/pub/gnu/ncurses/ncurses-latest.tar.gz -O /tmp/ncurses-latest.tar.gz
-                    tar -xzf /tmp/ncurses-latest.tar.gz -C /tmp
-                    NCURSES_DIR=$(tar -tzf /tmp/ncurses-latest.tar.gz | head -1 | cut -f1 -d"/")
-                    cd "/tmp/$NCURSES_DIR"
-                    ./configure --prefix="$HOME/.local" --enable-shared --with-termlib --with-ticlib --with-install-prefix="$HOME/.local"
-                    make -j"$(nproc)"
-                    make install
-                    cd -
-                    rm -rf "/tmp/$NCURSES_DIR" /tmp/ncurses-latest.tar.gz
-                fi
-
-                # Download and build latest Zsh in /tmp
-                wget -qO /tmp/zsh.tar.xz https://sourceforge.net/projects/zsh/files/latest/download
-                mkdir -p /tmp/zsh-src
-                unxz /tmp/zsh.tar.xz
-                tar -xf /tmp/zsh.tar -C /tmp/zsh-src --strip-components 1
-                cd /tmp/zsh-src
-
-                export CPPFLAGS="-I$HOME/.local/include"
-                export LDFLAGS="-L$HOME/.local/lib"
-                ./configure --prefix="$HOME/.local"
-                make -j"$(nproc)"
-                make install
-                cd -
-                rm -rf /tmp/zsh-src /tmp/zsh.tar
-
-                printf "Official Zsh installed to \$HOME/.local/bin/zsh\n"
+                install_zsh
                 ;;
             curl|git)
                 printf "Please install %s manually or via your package manager (no user-level installer available).\n" "$pkg"
@@ -174,12 +236,12 @@ install_nerd_fonts() {
         URL="$NERD_FONTS_REPO/${TAR}"
 
         printf "Downloading %s Nerd Font...\n" "$font"
-        curl -fLo "/tmp/$TAR" --retry 3 --retry-delay 2 "$URL"
+        curl -fLo "${HOME}/bootstrap/$TAR" --retry 3 --retry-delay 2 "$URL"
 
         printf "Extracting %s...\n" "$font"
-        TMP_FONT_DIR="/tmp/${font}-extract"
+        TMP_FONT_DIR="${HOME}/bootstrap/${font}-extract"
         mkdir -p "$TMP_FONT_DIR"
-        tar --wildcards --no-anchored -xJf "/tmp/$TAR" -C "$TMP_FONT_DIR" '*.ttf' '*.otf' 2>/dev/null || true
+        tar --wildcards --no-anchored -xJf "${HOME}/bootstrap/$TAR" -C "$TMP_FONT_DIR" '*.ttf' '*.otf' 2>/dev/null || true
 
         printf "Installing %s font files...\n" "$font"
         # Prefer .otf if present, otherwise .ttf
@@ -189,7 +251,7 @@ install_nerd_fonts() {
             mv "$TMP_FONT_DIR"/*.ttf "$FONT_DIR"/
         fi
 
-        rm -rf "$TMP_FONT_DIR" "/tmp/$TAR"
+        rm -rf "$TMP_FONT_DIR" "${HOME}/bootstrap/$TAR"
 
         printf "Installed %s Nerd Font.\n\n" "$font"
     done
@@ -214,7 +276,7 @@ set_default_shell() {
             printf "  %s\n" "$zsh_path"
             printf "to /etc/shells (requires root), then run:\n"
             printf "  chsh -s %s\n" "$zsh_path"
-            printf "Or, add 'exec %s -l' to your ~/.bash_profile or ~/.profile.\n\n" "$zsh_path"
+            printf "Or, add 'exec %s -l' to your ${HOME}/.bash_profile or ${HOME}/.profile.\n\n" "$zsh_path"
         fi
     fi
 }
